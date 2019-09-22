@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "project2.h"
  
 /* ***************************************************************************
@@ -17,7 +18,26 @@
    Compile as gcc -g project2.c student2.c -o p2
 **********************************************************************/
 
+#define QSIZE 128
 
+struct Sndr {
+	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
+	int end; //total number of packets sent. This % QSIZE gets end of unsent packets
+	int start; //This % QSIZE gets start of unsent packets
+	int nextSeq; //alternates between 1 and 0 for FSM
+} Sndr;
+
+struct Rcvr {
+	int currSeq; //alternates between 1 and 0 for FSM
+} Rcvr;
+
+struct Sndr A;
+struct Rcvr B;
+
+//For the given packet returns the checksum
+int generateChecksum(struct pkt* packet){
+	return 0;
+}
 
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 /* 
@@ -35,6 +55,16 @@
  * in-order, and correctly, to the receiving side upper layer.
  */
 void A_output(struct msg message) {
+	if(A.end - A.start >= QSIZE){
+		printf("Sender packet buffer is full. Packet dropped: %s\n", message.data);
+		return;
+	}
+	struct pkt* sndPkt = &A.pktBuff[A.end % QSIZE];
+	sndPkt->seqnum = A.end;
+	sndPkt->acknum = A.nextSeq;
+	memmove(sndPkt->payload, message.data, 20);
+	sndPkt->checksum = generateChecksum(sndPkt);
+	A.end++;
 }
 
 /*
@@ -42,7 +72,7 @@ void A_output(struct msg message) {
  * implementation is bi-directional.
  */
 void B_output(struct msg message)  {
-
+	printf("This program does not support bi-directional messaging. This function call has been ignored\n");
 }
 
 /* 
@@ -68,6 +98,9 @@ void A_timerinterrupt() {
 /* The following routine will be called once (only) before any other    */
 /* entity A routines are called. You can use it to do any initialization */
 void A_init() {
+	A.start = 0;
+	A.end = 0;
+	A.nextSeq = 0;
 }
 
 
@@ -82,6 +115,7 @@ void A_init() {
  * packet is the (possibly corrupted) packet sent from the A-side.
  */
 void B_input(struct pkt packet) {
+
 }
 
 /*
@@ -91,6 +125,7 @@ void B_input(struct pkt packet) {
  * and stoptimer() in the writeup for how the timer is started and stopped.
  */
 void  B_timerinterrupt() {
+
 }
 
 /* 
@@ -98,5 +133,6 @@ void  B_timerinterrupt() {
  * entity B routines are called. You can use it to do any initialization 
  */
 void B_init() {
+	B.currSeq = 0;
 }
 
