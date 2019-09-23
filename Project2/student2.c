@@ -31,6 +31,7 @@ struct Sndr {
 
 struct Rcvr {
 	int currSeq; //alternates between 1 and 0 for FSM
+	struct pkt lastPkt; //last packet B received (simplifies ACK/NAK)
 } Rcvr;
 
 struct Sndr A;
@@ -164,7 +165,24 @@ void A_init() {
  * packet is the (possibly corrupted) packet sent from the A-side.
  */
 void B_input(struct pkt packet) {
+	if(packet.checksum != generateChecksum(&packet)){
+		printf("B_INPUT(): Corrupted packet. Sending NAK %d\n", B.lastPkt.acknum);
+		tolayer3(1, B.lastPkt);
+	} else if (packet.seqnum != B.currSeq){
+		printf("B_INPUT(): Unexpected sequence. Sending NAK %d\n", B.lastPkt.acknum);
+		tolayer3(1, B.lastPkt);
+	} else {
+		printf("B_INPUT(): Received valid packet %d with %s\n", packet.seqnum, packet.payload);
+		struct msg message;
+		memmove(&message.data, packet.payload, 20);
+		tolayer5(1, message);
 
+		printf("B_INPUT(): Sending ACK %d\n", packet.seqnum);
+		B.lastPkt.acknum = packet.seqnum;
+		B.lastPkt.checksum = generateChecksum(&B.lastPkt);
+		tolayer3(1, B.lastPkt);
+		B.currSeq++;
+	}
 }
 
 /*
@@ -174,7 +192,7 @@ void B_input(struct pkt packet) {
  * and stoptimer() in the writeup for how the timer is started and stopped.
  */
 void  B_timerinterrupt() {
-
+	printf("We have not implemented bidirectional messaging. Call ignored\n");
 }
 
 /* 
@@ -183,5 +201,9 @@ void  B_timerinterrupt() {
  */
 void B_init() {
 	B.currSeq = 0;
+	B.lastPkt.seqnum = -1;
+	B.lastPkt.acknum = -1;
+	memset(B.lastPkt.payload, 0, 20);
+	B.lastPkt.checksum = generateChecksum(&B.lastPkt);
 }
 
