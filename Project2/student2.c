@@ -19,12 +19,14 @@
 **********************************************************************/
 
 #define QSIZE 128
+#define RTT 20
 
 struct Sndr {
 	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
 	int end; //total number of packets sent. This % QSIZE gets end of unsent packets
 	int start; //This % QSIZE gets start of unsent packets
 	int nextSeq; //alternates between 1 and 0 for FSM
+	int currIdx; //used for iteration through the Sndr buffer
 } Sndr;
 
 struct Rcvr {
@@ -36,7 +38,28 @@ struct Rcvr B;
 
 //For the given packet returns the checksum
 int generateChecksum(struct pkt* packet){
-	return 0;
+	int toRet = 0;
+	int i = 0;
+	for(i = 0; i < 4; i++){
+		toRet += packet->seqnum >> (8 * i);
+		toRet += packet->acknum >> (8 * i);
+	}
+	for(i = 0; i < 20; i++){
+		toRet += packet->payload[i];
+	}
+	return toRet;
+}
+
+//send any waiting packets
+void send(){
+	while(A.currIdx < A.end){
+		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE];
+		tolayer3(0, *toSend);
+		printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
+		A.currIdx++;	
+	}
+
+	startTimer(0, RTT);
 }
 
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
@@ -65,6 +88,7 @@ void A_output(struct msg message) {
 	memmove(sndPkt->payload, message.data, 20);
 	sndPkt->checksum = generateChecksum(sndPkt);
 	A.end++;
+	send();
 }
 
 /*
@@ -82,7 +106,24 @@ void B_output(struct msg message)  {
  * packet is the (possibly corrupted) packet sent from the B-side.
  */
 void A_input(struct pkt packet) {
-
+	if(packet.checksum != generateChecksum(&packet)){
+		printf("A_INPUT(): Corrupted packet\n");
+		return;
+	} else if(packet.acknum < A.start){
+		printf("A_INPUT(): Received NAK using num %d\n", packet.acknum);
+		return;
+	} else {
+		A.start = ++packet.acknum;
+		printf("A_INPUT(): Received ACK num %d\n", packet.acknum);
+		if(A.start == A.currIdx){
+			stopTimer(0);
+			printf("A_INPUT: Timer stopped\n");
+			send();
+		} else {
+			printf("A_INPUT(): Timer started with %d", RTT);
+			startTimer(0, RTT);
+		}
+	}
 }
 
 /*
@@ -92,7 +133,14 @@ void A_input(struct pkt packet) {
  * and stoptimer() in the writeup for how the timer is started and stopped.
  */
 void A_timerinterrupt() {
-
+	int i = 0;
+	for(i = A.start; i < A.currIdx; i++){
+		struct pkt *toResend = &A.pktBuff[i % QSIZE];
+		tolayer3(0, *toResend);
+		printf("A_TIMERINTERRUPT(): Resent packet %d with %s\n", toResend->seqnum, toResend->payload);
+	}
+	startTimer(0, RTT);
+	printf("A_TIMERINTERRUPT(): Timer started with %d\n", RTT);
 }  
 
 /* The following routine will be called once (only) before any other    */
@@ -101,6 +149,7 @@ void A_init() {
 	A.start = 0;
 	A.end = 0;
 	A.nextSeq = 0;
+	A.currIdx = 0;
 }
 
 

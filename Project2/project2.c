@@ -34,6 +34,7 @@ VERSIONS:
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <sys/time.h>
 #ifdef  WINDOWS
     #include <windows.h>
 #endif
