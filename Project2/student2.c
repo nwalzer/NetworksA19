@@ -20,6 +20,7 @@
 
 #define QSIZE 128
 #define RTT 20
+#define MSIZE 20
 
 struct Sndr {
 	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
@@ -39,28 +40,37 @@ struct Rcvr B;
 
 //For the given packet returns the checksum
 int generateChecksum(struct pkt* packet){
-	int toRet = 0;
+	int toRet = 0xFFFF;
+	int sum = 0;
+	int x = 0;
+	int j = 0;
 	int i = 0;
 	for(i = 0; i < 4; i++){
 		toRet += packet->seqnum >> (8 * i);
 		toRet += packet->acknum >> (8 * i);
 	}
-	for(i = 0; i < 20; i++){
-		toRet += packet->payload[i];
+	for(i = 0; i < MSIZE; i++){
+		j = packet->payload[i];
+		sum +=((i+1) * j);
+		x = ((toRet >> 8) ^ j) & 0xFF;
+		x ^= x >> 4;
+		toRet = ((toRet << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
 	}
 	return toRet;
 }
 
 //send any waiting packets
 void send(){
-	while(A.currIdx < A.end){
+	int start = A.currIdx;
+	while(A.currIdx < A.end && A.currIdx - start < 5){
 		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE];
 		tolayer3(0, *toSend);
 		printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
+		if(A.currIdx == A.start){
+			startTimer(0, RTT);
+		}
 		A.currIdx++;	
 	}
-
-	startTimer(0, RTT);
 }
 
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
