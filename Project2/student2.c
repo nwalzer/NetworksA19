@@ -18,21 +18,28 @@
    Compile as gcc -g project2.c student2.c -o p2
 **********************************************************************/
 
+//size of buffer on A side to hold packets
 #define QSIZE 128
+
+//time interval
 #define RTT 2000
+
+//size of a standard message
 #define MSIZE 20
+
+//max size of the sending window
 #define WINDOW 5
 
 struct Sndr {
 	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
 	int end; //total number of packets sent. This % QSIZE gets end of unsent packets
 	int start; //This % QSIZE gets start of unsent packets
-	int nextSeq; //alternates between 1 and 0 for FSM
+	int nextSeq; //next sequence that's expected
 	int currIdx; //used for iteration through the Sndr buffer
 } Sndr;
 
 struct Rcvr {
-	int currSeq; //alternates between 1 and 0 for FSM
+	int currSeq; //current sequence we are awaiting
 	struct pkt lastPkt; //last packet B received (simplifies ACK/NAK)
 } Rcvr;
 
@@ -40,6 +47,7 @@ struct Sndr A;
 struct Rcvr B;
 
 //For the given packet returns the checksum
+//There is no real algorithm to it, just kinda does a lot of stuff and hopes for the best :)
 int generateChecksum(struct pkt* packet){
 	int toRet = 0xFFFF;
 	int sum = 0;
@@ -62,15 +70,14 @@ int generateChecksum(struct pkt* packet){
 
 //send any waiting packets
 void send(){
-	//int start = A.currIdx;
-	while(A.currIdx < A.end && A.currIdx < A.start + WINDOW){
-		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE];
-		tolayer3(0, *toSend);
+	while(A.currIdx < A.end && A.currIdx < A.start + WINDOW){ //while we haven't hit the end AND haven't exceeded the send iwndow
+		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE]; //build packet
+		tolayer3(0, *toSend); //send the packet to layer 3
 		printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
-		if(A.currIdx == A.start){
+		if(A.currIdx == A.start){ //if we sent the packet we are now going to wait on, start timer
 			startTimer(0, RTT);
 		}
-		A.currIdx++;	
+		A.currIdx++; //increment that next packet sent
 	}
 }
 
@@ -90,22 +97,23 @@ void send(){
  * in-order, and correctly, to the receiving side upper layer.
  */
 void A_output(struct msg message) {
-	if(A.end - A.start >= QSIZE){
+	if(A.end - A.start >= QSIZE){ //if full packet buffer, drop packets
 		printf("Sender packet buffer is full. Packet dropped: %s\n", message.data);
 		return;
 	}
 	struct pkt* sndPkt = &A.pktBuff[A.end % QSIZE];
-	sndPkt->seqnum = A.end;
-	sndPkt->acknum = A.nextSeq;
-	memmove(sndPkt->payload, message.data, 20);
-	sndPkt->checksum = generateChecksum(sndPkt);
-	A.end++;
-	send();
+	sndPkt->seqnum = A.end; 
+	sndPkt->acknum = A.nextSeq; 
+	memmove(sndPkt->payload, message.data, 20); //copy message data into packet
+	sndPkt->checksum = generateChecksum(sndPkt); //generate packet checksum
+	A.end++; //push the end of the buffer down one more index
+	send(); //send packets
 }
 
 /*
  * Just like A_output, but residing on the B side.  USED only when the 
  * implementation is bi-directional.
+ * BI-DIRECTIONAL HAS NOT BEEN IMPLEMENTED
  */
 void B_output(struct msg message)  {
 	printf("This program does not support bi-directional messaging. This function call has been ignored\n");
@@ -118,20 +126,20 @@ void B_output(struct msg message)  {
  * packet is the (possibly corrupted) packet sent from the B-side.
  */
 void A_input(struct pkt packet) {
-	if(packet.checksum != generateChecksum(&packet)){
+	if(packet.checksum != generateChecksum(&packet)){ //if corrupted packet
 		printf("A_INPUT(): Corrupted packet\n");
 		return;
-	} else if(packet.acknum < A.start){
+	} else if(packet.acknum < A.start){ //Any acknum for a previously successful packet is a NAK
 		printf("A_INPUT(): Received NAK using num %d\n", packet.acknum);
 		return;
-	} else {
-		A.start = ++packet.acknum;
+	} else { //successful ACK receipt
+		A.start = ++packet.acknum; //move starting position up
 		printf("A_INPUT(): Received ACK num %d\n", packet.acknum);
-		if(A.start == A.currIdx){
-			stopTimer(0);
+		if(A.start == A.currIdx){ //if no longer waiting on packets
+			stopTimer(0); //stop timer
 			printf("A_INPUT: Timer stopped\n");
-			send();
-		} else {
+			send(); //send more
+		} else { //if there are more packets being waited on
 			printf("A_INPUT(): Timer started with %d\n", RTT);
 			startTimer(0, RTT);
 		}
@@ -150,18 +158,19 @@ void A_timerinterrupt() {
 		return;
 	}
 	int i = 0;
-	for(i = A.start; i < A.currIdx; i++){
+	for(i = A.start; i < A.currIdx; i++){ //for each packet we are waiting on
 		struct pkt *toResend = &A.pktBuff[i % QSIZE];
-		tolayer3(0, *toResend);
+		tolayer3(0, *toResend); //resend it
 		printf("A_TIMERINTERRUPT(): Resent packet %d with %s\n", toResend->seqnum, toResend->payload);
 	}
-	stopTimer(0);
-	startTimer(0, RTT);
+	stopTimer(0); //just in case
+	startTimer(0, RTT); //restart timer
 	printf("A_TIMERINTERRUPT(): Timer started with %d based on %d - %d\n", RTT, A.start, A.currIdx);
 }  
 
 /* The following routine will be called once (only) before any other    */
 /* entity A routines are called. You can use it to do any initialization */
+//We are starting with sequence 1
 void A_init() {
 	A.start = 1;
 	A.end = 1;
@@ -181,22 +190,22 @@ void A_init() {
  * packet is the (possibly corrupted) packet sent from the A-side.
  */
 void B_input(struct pkt packet) {
-	if(packet.checksum != generateChecksum(&packet)){
+	if(packet.checksum != generateChecksum(&packet)){ //if we got a corrupted packet
 		printf("B_INPUT(): Corrupted packet. Sending NAK %d\n", B.lastPkt.acknum);
 		tolayer3(1, B.lastPkt);
-	} else if (packet.seqnum != B.currSeq){
+	} else if (packet.seqnum != B.currSeq){ //if we got the wrong sequence
 		printf("B_INPUT(): Unexpected sequence. Sending NAK %d\n", B.lastPkt.acknum);
 		tolayer3(1, B.lastPkt);
-	} else {
+	} else { //if successful file transmission
 		printf("B_INPUT(): Received valid packet %d with %s\n", packet.seqnum, packet.payload);
 		struct msg message;
 		memmove(&message.data, packet.payload, 20);
-		tolayer5(1, message);
+		tolayer5(1, message); //send packet data to layer5
 
 		printf("B_INPUT(): Sending ACK %d\n", packet.seqnum);
 		B.lastPkt.acknum = packet.seqnum;
 		B.lastPkt.checksum = generateChecksum(&B.lastPkt);
-		tolayer3(1, B.lastPkt);
+		tolayer3(1, B.lastPkt); //generate ACK and checksum then resend
 		B.currSeq++;
 	}
 }
