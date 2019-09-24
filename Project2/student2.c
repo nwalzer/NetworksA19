@@ -30,6 +30,9 @@
 //max size of the sending window
 #define WINDOW 5
 
+//set to 1 to allow print statements, set to 0 to not print anything
+int PRINT = 0;
+
 struct Sndr {
 	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
 	int end; //total number of packets sent. This % QSIZE gets end of unsent packets
@@ -65,6 +68,9 @@ int generateChecksum(struct pkt* packet){
 		x ^= x >> 4;
 		toRet = ((toRet << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
 	}
+	if(PRINT){
+		printf("CHECKSUM(): %d\n", toRet);
+	}
 	return toRet;
 }
 
@@ -73,7 +79,9 @@ void send(){
 	while(A.currIdx < A.end && A.currIdx < A.start + WINDOW){ //while we haven't hit the end AND haven't exceeded the send iwndow
 		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE]; //build packet
 		tolayer3(0, *toSend); //send the packet to layer 3
-		printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
+		if(PRINT){
+			printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
+		}
 		if(A.currIdx == A.start){ //if we sent the packet we are now going to wait on, start timer
 			startTimer(0, RTT);
 		}
@@ -98,7 +106,9 @@ void send(){
  */
 void A_output(struct msg message) {
 	if(A.end - A.start >= QSIZE){ //if full packet buffer, drop packets
-		printf("Sender packet buffer is full. Packet dropped: %s\n", message.data);
+		if(PRINT){
+			printf("Sender packet buffer is full. Packet dropped: %s\n", message.data);
+		}
 		return;
 	}
 	struct pkt* sndPkt = &A.pktBuff[A.end % QSIZE];
@@ -116,7 +126,9 @@ void A_output(struct msg message) {
  * BI-DIRECTIONAL HAS NOT BEEN IMPLEMENTED
  */
 void B_output(struct msg message)  {
-	printf("This program does not support bi-directional messaging. This function call has been ignored\n");
+	if(PRINT){
+		printf("This program does not support bi-directional messaging. This function call has been ignored\n");
+	}
 }
 
 /* 
@@ -127,20 +139,30 @@ void B_output(struct msg message)  {
  */
 void A_input(struct pkt packet) {
 	if(packet.checksum != generateChecksum(&packet)){ //if corrupted packet
-		printf("A_INPUT(): Corrupted packet\n");
+		if(PRINT){
+			printf("A_INPUT(): Corrupted packet\n");
+		}
 		return;
 	} else if(packet.acknum < A.start){ //Any acknum for a previously successful packet is a NAK
-		printf("A_INPUT(): Received NAK using num %d\n", packet.acknum);
+		if(PRINT){
+			printf("A_INPUT(): Received NAK using num %d\n", packet.acknum);
+		}
 		return;
 	} else { //successful ACK receipt
 		A.start = ++packet.acknum; //move starting position up
-		printf("A_INPUT(): Received ACK num %d\n", packet.acknum);
+		if(PRINT){
+			printf("A_INPUT(): Received ACK num %d\n", packet.acknum);
+		}
 		if(A.start == A.currIdx){ //if no longer waiting on packets
 			stopTimer(0); //stop timer
-			printf("A_INPUT: Timer stopped\n");
+			if(PRINT){
+				printf("A_INPUT: Timer stopped\n");
+			}
 			send(); //send more
 		} else { //if there are more packets being waited on
-			printf("A_INPUT(): Timer started with %d\n", RTT);
+			if(PRINT){
+				printf("A_INPUT(): Timer started with %d\n", RTT);
+			}
 			startTimer(0, RTT);
 		}
 	}
@@ -154,18 +176,24 @@ void A_input(struct pkt packet) {
  */
 void A_timerinterrupt() {
 	if(A.start >= A.currIdx) { //if currIdx == start then we aren't waiting on any packets, so no timer needs to be started
-		printf("A_TIMERINTERRUPT(): Not waiting on any packets, continuing: %d - %d\n", A.start, A.currIdx);
+		if(PRINT){
+			printf("A_TIMERINTERRUPT(): Not waiting on any packets, continuing: %d - %d\n", A.start, A.currIdx);
+		}
 		return;
 	}
 	int i = 0;
 	for(i = A.start; i < A.currIdx; i++){ //for each packet we are waiting on
 		struct pkt *toResend = &A.pktBuff[i % QSIZE];
 		tolayer3(0, *toResend); //resend it
-		printf("A_TIMERINTERRUPT(): Resent packet %d with %s\n", toResend->seqnum, toResend->payload);
+		if(PRINT){
+			printf("A_TIMERINTERRUPT(): Resent packet %d with %s\n", toResend->seqnum, toResend->payload);
+		}
 	}
 	stopTimer(0); //just in case
 	startTimer(0, RTT); //restart timer
-	printf("A_TIMERINTERRUPT(): Timer started with %d based on %d - %d\n", RTT, A.start, A.currIdx);
+	if(PRINT){
+		printf("A_TIMERINTERRUPT(): Timer started with %d based on %d - %d\n", RTT, A.start, A.currIdx);
+	}
 }  
 
 /* The following routine will be called once (only) before any other    */
@@ -191,18 +219,25 @@ void A_init() {
  */
 void B_input(struct pkt packet) {
 	if(packet.checksum != generateChecksum(&packet)){ //if we got a corrupted packet
-		printf("B_INPUT(): Corrupted packet. Sending NAK %d\n", B.lastPkt.acknum);
+		if(PRINT){
+			printf("B_INPUT(): Corrupted packet. Sending NAK %d\n", B.lastPkt.acknum);
+		}
 		tolayer3(1, B.lastPkt);
 	} else if (packet.seqnum != B.currSeq){ //if we got the wrong sequence
-		printf("B_INPUT(): Unexpected sequence. Sending NAK %d\n", B.lastPkt.acknum);
+		if(PRINT){
+			printf("B_INPUT(): Unexpected sequence. Sending NAK %d\n", B.lastPkt.acknum);
+		}
 		tolayer3(1, B.lastPkt);
 	} else { //if successful file transmission
-		printf("B_INPUT(): Received valid packet %d with %s\n", packet.seqnum, packet.payload);
+		if(PRINT){
+			printf("B_INPUT(): Received valid packet %d with %s\n", packet.seqnum, packet.payload);
+		}
 		struct msg message;
 		memmove(&message.data, packet.payload, 20);
 		tolayer5(1, message); //send packet data to layer5
-
-		printf("B_INPUT(): Sending ACK %d\n", packet.seqnum);
+		if(PRINT){
+			printf("B_INPUT(): Sending ACK %d\n", packet.seqnum);
+		}
 		B.lastPkt.acknum = packet.seqnum;
 		B.lastPkt.checksum = generateChecksum(&B.lastPkt);
 		tolayer3(1, B.lastPkt); //generate ACK and checksum then resend

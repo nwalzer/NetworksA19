@@ -9,6 +9,10 @@ TO RUN:
 TO CLEAN:
 	run the command 'make clean'
 
+PRINT STATEMENTS:
+	in student2.c, giving the global variable 'PRINT' a value of 1 will enable printing, a value of 0 will 
+	disable printing. Printing is disabled by default.
+
 NOTE: Be wary about setting the error-related input parameters too high all at once. It is possible for the 
 	program to take too long to send packets successfully when these parameters are too high, leading
 	to the AEntity to begin dropping packets as its buffer fills, and leading to infinite timerinterrupts.
