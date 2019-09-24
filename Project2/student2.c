@@ -19,8 +19,9 @@
 **********************************************************************/
 
 #define QSIZE 128
-#define RTT 20
+#define RTT 2000
 #define MSIZE 20
+#define WINDOW 5
 
 struct Sndr {
 	struct pkt pktBuff[QSIZE]; //buffer for packets given from Layer 5
@@ -45,9 +46,9 @@ int generateChecksum(struct pkt* packet){
 	int x = 0;
 	int j = 0;
 	int i = 0;
-	for(i = 0; i < 4; i++){
-		toRet += packet->seqnum >> (8 * i);
-		toRet += packet->acknum >> (8 * i);
+	for(i = 0; i < sizeof(int); i++){
+		toRet += packet->seqnum >> (i);
+		toRet += packet->acknum >> (i);
 	}
 	for(i = 0; i < MSIZE; i++){
 		j = packet->payload[i];
@@ -61,8 +62,8 @@ int generateChecksum(struct pkt* packet){
 
 //send any waiting packets
 void send(){
-	int start = A.currIdx;
-	while(A.currIdx < A.end && A.currIdx - start < 5){
+	//int start = A.currIdx;
+	while(A.currIdx < A.end && A.currIdx < A.start + WINDOW){
 		struct pkt *toSend = &A.pktBuff[A.currIdx % QSIZE];
 		tolayer3(0, *toSend);
 		printf("SEND(): sent packet %d with %s\n", toSend->seqnum, toSend->payload);
@@ -131,7 +132,7 @@ void A_input(struct pkt packet) {
 			printf("A_INPUT: Timer stopped\n");
 			send();
 		} else {
-			printf("A_INPUT(): Timer started with %d", RTT);
+			printf("A_INPUT(): Timer started with %d\n", RTT);
 			startTimer(0, RTT);
 		}
 	}
@@ -144,23 +145,28 @@ void A_input(struct pkt packet) {
  * and stoptimer() in the writeup for how the timer is started and stopped.
  */
 void A_timerinterrupt() {
+	if(A.start >= A.currIdx) { //if currIdx == start then we aren't waiting on any packets, so no timer needs to be started
+		printf("A_TIMERINTERRUPT(): Not waiting on any packets, continuing: %d - %d\n", A.start, A.currIdx);
+		return;
+	}
 	int i = 0;
 	for(i = A.start; i < A.currIdx; i++){
 		struct pkt *toResend = &A.pktBuff[i % QSIZE];
 		tolayer3(0, *toResend);
 		printf("A_TIMERINTERRUPT(): Resent packet %d with %s\n", toResend->seqnum, toResend->payload);
 	}
+	stopTimer(0);
 	startTimer(0, RTT);
-	printf("A_TIMERINTERRUPT(): Timer started with %d\n", RTT);
+	printf("A_TIMERINTERRUPT(): Timer started with %d based on %d - %d\n", RTT, A.start, A.currIdx);
 }  
 
 /* The following routine will be called once (only) before any other    */
 /* entity A routines are called. You can use it to do any initialization */
 void A_init() {
-	A.start = 0;
-	A.end = 0;
-	A.nextSeq = 0;
-	A.currIdx = 0;
+	A.start = 1;
+	A.end = 1;
+	A.nextSeq = 1;
+	A.currIdx = 1;
 }
 
 
@@ -210,9 +216,9 @@ void  B_timerinterrupt() {
  * entity B routines are called. You can use it to do any initialization 
  */
 void B_init() {
-	B.currSeq = 0;
-	B.lastPkt.seqnum = -1;
-	B.lastPkt.acknum = -1;
+	B.currSeq = 1;
+	B.lastPkt.seqnum = 0;
+	B.lastPkt.acknum = 0;
 	memset(B.lastPkt.payload, 0, 20);
 	B.lastPkt.checksum = generateChecksum(&B.lastPkt);
 }
