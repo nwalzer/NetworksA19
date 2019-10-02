@@ -14,7 +14,7 @@ struct NeighborCosts   *neighbor0;
 
 void printdt0( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance_table *dtptr );
 
-int neighborIDs[MAX_NODES];
+int neighbor0IDs[MAX_NODES];
 
 void rtinit0() {
 	printf("rtinit0 called\n");
@@ -24,7 +24,7 @@ void rtinit0() {
 	int j = 0;
 
 	for(i = 0; i < MAX_NODES; i++){ //set everything in the costs array to infinite distance
-		neighborIDs[i] = -1; //initialize neighbor IDs to invalid value
+		neighbor0IDs[i] = -1; //initialize neighbor IDs to invalid value
 		for(j = 0; j < MAX_NODES; j++){
 			dt0.costs[i][j] = INFINITY;
 		}
@@ -34,7 +34,7 @@ void rtinit0() {
 	for(i = 0; i < totalNodes; i++){ //establish this node's distance to each other node (1 hop)
 		if(neighbor0->NodeCosts[i] != INFINITY){ //if we have a direct connection to this node
 			dt0.costs[i][i] = neighbor0->NodeCosts[i];
-			neighborIDs[j] = i;
+			neighbor0IDs[j] = i;
 			j++;
 		}
 	}
@@ -50,9 +50,7 @@ void rtinit0() {
 			}
 		}
 		tempArray[j] = lowest;
-		printf("%d: %d ", j, lowest);
 	}
-	printf("\n");
 
 	struct RoutePacket toSend;
 	toSend.sourceid = 0;
@@ -60,16 +58,16 @@ void rtinit0() {
 	memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
 	
 	i = 0;
-	while(i < MAX_NODES && neighborIDs[i] != -1){
-		if(neighborIDs[i] == 0){ //don't send to self
+	while(i < MAX_NODES && neighbor0IDs[i] != -1){
+		if(neighbor0IDs[i] == 0){ //don't send to self
 			i++;
 			continue;
 		}
 
-		toSend.destid = neighborIDs[i];
+		toSend.destid = neighbor0IDs[i];
 		toLayer2(toSend);
 
-		printf("Node %d is sending a packet to %d with: ", 0, toSend.destid);
+		printf("At time t=0.000 node %d is sending a packet to %d with: ", 0, toSend.destid);
 		for(j = 0; j < MAX_NODES; j++){
 			printf(" %d", toSend.mincost[j]);
 		}
@@ -77,27 +75,33 @@ void rtinit0() {
 
 		i++;
 	}
-	for(i = 0; i < MAX_NODES; i++){
-		for(j = 0; j < MAX_NODES; j++){
-			printf("%d ", dt0.costs[i][j]);
+	if(TraceLevel == 2){
+		for(i = 0; i < MAX_NODES; i++){
+			for(j = 0; j < MAX_NODES; j++){
+				printf("%d ", dt0.costs[i][j]);
+			}
+			printf("\n");
 		}
-		printf("\n");
 	}
 }
-/*arr[i][j]
-  i = 0: j=0, 1, 2
-  i = 1: j=0, 1, 2
 
-*/
+
 void rtupdate0( struct RoutePacket *rcvdpkt ) {
-	printf("rtupdate0 was called from packet sent from %d with:", rcvdpkt->sourceid);
+	if(TraceLevel == 2){
+		printf("At time t=0.000 rtupdate0 was called from packet sent from %d with:", rcvdpkt->sourceid);
+	} else {
+		printf("At time t=0.000 rtupdate0 was called\n");
+	}
 	int i = 0;
 	int j = 0;
 	int sendUpdate = 0;
 	int src = rcvdpkt->sourceid;
 
 	for(i = 0; i < MAX_NODES; i++){
-		printf(" %d", rcvdpkt->mincost[i]);
+		if(TraceLevel == 2){
+			printf(" %d", rcvdpkt->mincost[i]);
+		}
+
 		if(i == src){ //don't update with src dist to itself
 			continue;
 		} else if(rcvdpkt->mincost[i] == INFINITY){ //if node doesn't have a path, continue;
@@ -113,15 +117,18 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 			}
 		}
 	}
-	printf("\n");
+	
+	if(TraceLevel == 2){
+		printf("\nUpdate? %d\n", sendUpdate);
+	}
 	printdt0(0, neighbor0, &dt0);
-	printf("Update?: %d\n", sendUpdate);
+	
 	if(sendUpdate){
 		int tempArray[MAX_NODES];
 		for(i = 0; i < MAX_NODES; i++){
-			tempArray[i] = INFINITY;
+			tempArray[i] = INFINITY; //initialize this to big number
 			for(j = 0; j < MAX_NODES; j++){
-				if(dt0.costs[i][j] < tempArray[i]){
+				if(dt0.costs[i][j] < tempArray[i]){ //get shortest distance for dest i
 					tempArray[i] = dt0.costs[i][j];
 				}
 			}
@@ -133,16 +140,16 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 		memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
 
 		i = 0;
-		while(i < MAX_NODES && neighborIDs[i] != -1){
-			if(neighborIDs[i] == 0 || neighborIDs[i] == src){ //don't send to self or source
+		while(i < MAX_NODES && neighbor0IDs[i] != -1){
+			if(neighbor0IDs[i] == 0 || neighbor0IDs[i] == src){ //don't send to self or source
 				i++;
 				continue;
 			}
 
-			toSend.destid = neighborIDs[i];
+			toSend.destid = neighbor0IDs[i];
 			toLayer2(toSend);
 
-			printf("Node %d is sending a packet to %d with: ", 0, toSend.destid);
+			printf("At time t=0.000 node %d is sending a packet to %d with: ", 0, toSend.destid);
 			for(j = 0; j < MAX_NODES; j++){
 				printf(" %d", toSend.mincost[j]);
 			}

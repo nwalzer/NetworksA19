@@ -77,11 +77,13 @@ void rtinit1() {
 
 		i++;
 	}
-	for(i = 0; i < MAX_NODES; i++){
-		for(j = 0; j < MAX_NODES; j++){
-			printf("%d ", dt1.costs[i][j]);
+	if(TraceLevel == 2){
+		for(i = 0; i < MAX_NODES; i++){
+			for(j = 0; j < MAX_NODES; j++){
+				printf("%d ", dt1.costs[i][j]);
+			}
+			printf("\n");
 		}
-		printf("\n");
 	}
 }
 /*arr[i][j]
@@ -90,14 +92,21 @@ void rtinit1() {
 
 */
 void rtupdate1( struct RoutePacket *rcvdpkt ) {
-	printf("rtupdate1 was called from a packet sent by %d with:", rcvdpkt->sourceid);
+	if(TraceLevel == 2){
+		printf("At time t=0.000 rtupdate1 was called from a packet sent by %d with:", rcvdpkt->sourceid);
+	} else {
+		printf("At time t=0.000 rtupdate1 was called\n");
+	}
+	
 	int i = 0;
 	int j = 0;
 	int sendUpdate = 0;
 	int src = rcvdpkt->sourceid;
 
 	for(i = 0; i < MAX_NODES; i++){
-		printf(" %d", rcvdpkt->mincost[i]);
+		if(TraceLevel == 2){
+			printf(" %d", rcvdpkt->mincost[i]);
+		}
 		if(i == src){ //don't update with src dist to itself
 			continue;
 		} else if(rcvdpkt->mincost[i] == INFINITY){
@@ -113,7 +122,9 @@ void rtupdate1( struct RoutePacket *rcvdpkt ) {
 			}
 		}
 	}
-	printf("\n");
+	if(TraceLevel == 2){
+		printf("\nUpdate? %d\n", sendUpdate);
+	}
 	printdt1(1, neighbor1, &dt1);
 	
 	if(sendUpdate){
@@ -142,7 +153,7 @@ void rtupdate1( struct RoutePacket *rcvdpkt ) {
 			toSend.destid = neighbor1IDs[i];
 			toLayer2(toSend);
 
-			printf("Node %d is sending a packet to %d with: ", 1, toSend.destid);
+			printf("At time t=0.000 node %d is sending a packet to %d with: ", 1, toSend.destid);
 			for(j = 0; j < MAX_NODES; j++){
 				printf(" %d", toSend.mincost[j]);
 			}
