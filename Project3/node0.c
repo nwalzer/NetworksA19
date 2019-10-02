@@ -12,13 +12,14 @@ struct NeighborCosts   *neighbor0;
 
 /* students to write the following two routines, and maybe some others */
 
-//printdt0(int MyNodeNumber, struct NeighborCosts *neighbor, struct distance_table *dtptr);
+void printdt0( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance_table *dtptr );
 
 int neighborIDs[MAX_NODES];
 
 int THISNODE = 0;
 
 void rtinit0() {
+	printf("rtinit0 called\n");
 	neighbor0 = getNeighborCosts(THISNODE);
 	int totalNodes = neighbor0->NodesInNetwork;
 	int i = 0;
@@ -41,16 +42,28 @@ void rtinit0() {
 	}
 	printdt0(0, neighbor0, &dt0);
 	i = 0;
-	while(neighborIDs[i] != -1){
-		if(i == THISNODE){ //don't send to self
+	while(i < MAX_NODES && neighborIDs[i] != -1){
+		if(neighborIDs[i] == THISNODE){ //don't send to self
+			i++;
 			continue;
 		}
 		struct RoutePacket toSend;
 		toSend.sourceid = 0;
-		toSend.destid = i;
-		memcpy(&toSend.mincost, &dt0.costs[THISNODE], MAX_NODES * sizeof(int));
+		toSend.destid = neighborIDs[i];
+		memcpy(&toSend.mincost, &dt0.costs[THISNODE][0], &dt0.costs[THISNODE+1][0] - &dt0.costs[THISNODE][0]);
 		toLayer2(toSend);
+		printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+		for(j = 0; j < MAX_NODES; j++){
+			printf(" %d", dt0.costs[THISNODE][j]);
+		}
+		printf("\n");
 		i++;
+	}
+	for(i = 0; i < MAX_NODES; i++){
+		for(j = 0; j < MAX_NODES; j++){
+			printf("%d ", dt0.costs[i][j]);
+		}
+		printf("\n");
 	}
 }
 
