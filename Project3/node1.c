@@ -97,7 +97,7 @@ void rtupdate1( struct RoutePacket *rcvdpkt ) {
 		if(i == src){ //don't update with src dist to itself
 			continue;
 		}
-		//if(rcvdpkt->mincost[i] < dt0.costs[i][src]){ //if 
+		//if(rcvdpkt->mincost[i] < dt1.costs[i][src]){ //if 
 			dt1.costs[i][src] = rcvdpkt->mincost[i] + dt1.costs[src][src]; //distance to node = dist from this node to pkt src + src distance
 			for(j = 0; j < MAX_NODES; j++){
 				if(dt1.costs[i][src] < dt1.costs[i][j]){ //if any of the new values is now the shortest distance to that node
@@ -126,7 +126,7 @@ void rtupdate1( struct RoutePacket *rcvdpkt ) {
 
 		i = 0;
 		while(i < MAX_NODES && neighbor1IDs[i] != -1){
-			if(neighborIDs[i] == 1 || neighborIDs[i] == src){ //don't send to self or source
+			if(neighbor1IDs[i] == 1 || neighbor1IDs[i] == src){ //don't send to self or source
 				i++;
 				continue;
 			}
