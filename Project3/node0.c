@@ -90,30 +90,32 @@ void rtinit0() {
 
 */
 void rtupdate0( struct RoutePacket *rcvdpkt ) {
-	printf("rtupdate0 was called\n");
+	printf("rtupdate0 was called from packet sent from %d with:", rcvdpkt->sourceid);
 	int i = 0;
 	int j = 0;
 	int sendUpdate = 0;
 	int src = rcvdpkt->sourceid;
 
 	for(i = 0; i < MAX_NODES; i++){
+		printf(" %d", rcvdpkt->mincost[i]);
 		if(i == src){ //don't update with src dist to itself
 			continue;
-		}
-		//if(rcvdpkt->mincost[i] < dt0.costs[i][src]){ //if
-			if(rcvdpkt->mincost[i] == INFINITY){
-				continue;
-			} 
-			dt0.costs[i][src] = rcvdpkt->mincost[i] + dt0.costs[src][src]; //distance to node = dist from this node to pkt src + src distance
-			for(j = 0; j < MAX_NODES; j++){
-				if(dt0.costs[i][src] < dt0.costs[i][j]){ //if any of the new values is now the shortest distance to that node
-					sendUpdate = 1; //we need to update this node's shortest path
-				}
+		} else if(rcvdpkt->mincost[i] == INFINITY){ //if node doesn't have a path, continue;
+			continue;
+		} else if(rcvdpkt->mincost[i] + dt0.costs[src][src] == dt0.costs[i][src]){ //if this will cause no change, continue;
+			continue;
+		} 
+		dt0.costs[i][src] = rcvdpkt->mincost[i] + dt0.costs[src][src]; //distance to node = dist from this node to pkt src + src distance
+		
+		for(j = 0; j < MAX_NODES; j++){
+			if(dt0.costs[i][src] < dt0.costs[i][j]){ //if any of the new values is now the shortest distance to that node
+				sendUpdate = 1; //we need to update this node's shortest path
 			}
-		//}
+		}
 	}
+	printf("\n");
 	printdt0(0, neighbor0, &dt0);
-	
+	printf("Update?: %d\n", sendUpdate);
 	if(sendUpdate){
 		int tempArray[MAX_NODES];
 		for(i = 0; i < MAX_NODES; i++){
