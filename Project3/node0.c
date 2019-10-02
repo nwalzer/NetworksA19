@@ -16,11 +16,9 @@ void printdt0( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance
 
 int neighborIDs[MAX_NODES];
 
-int THISNODE = 0;
-
 void rtinit0() {
 	printf("rtinit0 called\n");
-	neighbor0 = getNeighborCosts(THISNODE);
+	neighbor0 = getNeighborCosts(0);
 	int totalNodes = neighbor0->NodesInNetwork;
 	int i = 0;
 	int j = 0;
@@ -57,13 +55,13 @@ void rtinit0() {
 	printf("\n");
 
 	struct RoutePacket toSend;
-	toSend.sourceid = THISNODE;
+	toSend.sourceid = 0;
 		
 	memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
 	
 	i = 0;
 	while(i < MAX_NODES && neighborIDs[i] != -1){
-		if(neighborIDs[i] == THISNODE){ //don't send to self
+		if(neighborIDs[i] == 0){ //don't send to self
 			i++;
 			continue;
 		}
@@ -71,7 +69,7 @@ void rtinit0() {
 		toSend.destid = neighborIDs[i];
 		toLayer2(toSend);
 
-		printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+		printf("Node %d is sending a packet to %d with: ", 0, toSend.destid);
 		for(j = 0; j < MAX_NODES; j++){
 			printf(" %d", toSend.mincost[j]);
 		}
@@ -114,7 +112,7 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 			}
 		//}
 	}
-	printdt0(THISNODE, neighbor0, &dt0);
+	printdt0(0, neighbor0, &dt0);
 	
 	if(sendUpdate){
 		int tempArray[MAX_NODES];
@@ -134,7 +132,7 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 
 		i = 0;
 		while(i < MAX_NODES && neighborIDs[i] != -1){
-			if(neighborIDs[i] == THISNODE || neighborIDs[i] == src){ //don't send to self or source
+			if(neighborIDs[i] == 0 || neighborIDs[i] == src){ //don't send to self or source
 				i++;
 				continue;
 			}
@@ -142,7 +140,7 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 			toSend.destid = neighborIDs[i];
 			toLayer2(toSend);
 
-			printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+			printf("Node %d is sending a packet to %d with: ", 0, toSend.destid);
 			for(j = 0; j < MAX_NODES; j++){
 				printf(" %d", toSend.mincost[j]);
 			}
