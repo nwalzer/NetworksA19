@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "project3.h"
+#include <string.h>
 
 extern int TraceLevel;
 
@@ -9,16 +10,97 @@ struct distance_table {
 struct distance_table dt1;
 struct NeighborCosts   *neighbor1;
 
-/* students to write the following two routines, and maybe some others */
+void printdt1( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance_table *dtptr );
+
+int neighbor1IDs[MAX_NODES];
+
+int THISNODE = 1;
 
 void rtinit1() {
+	printf("rtinit1 called\n");
+	neighbor1 = getNeighborCosts(THISNODE);
+	int totalNodes = neighbor1->NodesInNetwork;
+	int i = 0;
+	int j = 0;
 
+	for(i = 0; i < MAX_NODES; i++){ //set everything in the costs array to infinite distance
+		neighborIDs[i] = -1; //initialize neighbor IDs to invalid value
+		for(j = 0; j < MAX_NODES; j++){
+			dt1.costs[i][j] = INFINITY;
+		}
+	}
+
+	j = 0;
+	for(i = 0; i < totalNodes; i++){ //establish this node's distance to each other node (1 hop)
+		if(neighbor0->NodeCosts[i] != INFINITY){ //if we have a direct connection to this node
+			dt1.costs[i][i] = neighbor1->NodeCosts[i];
+			neighbor1IDs[j] = i;
+			j++;
+		}
+	}
+	printdt1(THISNODE, neighbor0, &dt1);
+	
+	int tempArray[MAX_NODES];
+	for(j = 0; j < MAX_NODES; j++){
+		int k = 0;
+		int lowest = INFINITY;
+		for(k = 0; k < MAX_NODES; k++){
+			if(dt1.costs[j][k] < lowest){
+				lowest = dt1.costs[j][k];
+			}
+		}
+		tempArray[j] = lowest;
+		printf("%d: %d ", j, lowest);
+	}
+	printf("\n");
+
+	struct RoutePacket toSend;
+	toSend.sourceid = THISNODE;
+		
+	memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
+	
+	i = 0;
+	while(i < MAX_NODES && neighborIDs[i] != -1){
+		if(neighbor1IDs[i] == THISNODE){ //don't send to self
+			i++;
+			continue;
+		}
+
+		toSend.destid = neighbor1IDs[i];
+		toLayer2(toSend);
+
+		printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+		for(j = 0; j < MAX_NODES; j++){
+			printf(" %d", toSend.mincost[j]);
+		}
+		printf("\n");
+
+		i++;
+	}
+	for(i = 0; i < MAX_NODES; i++){
+		for(j = 0; j < MAX_NODES; j++){
+			printf("%d ", dt1.costs[i][j]);
+		}
+		printf("\n");
+	}
 }
-
-
+/*arr[i][j]
+  i = 0: j=0, 1, 2
+  i = 1: j=0, 1, 2
+*/
 void rtupdate1( struct RoutePacket *rcvdpkt ) {
+	int i = 0;
+	int sendUpdate;
+	int src = rcvdpkt->sourceid;
 
+	for(i = 0; i < MAX_NODES; i++){
+		if(rcvdpkt->mincost[i] < dt1.costs[i][src]){
+			dt1.costs[i][src] = rcvdpkt->mincost[i];
+		}
+	}
+	printdt0(THISNODE, neighbor0, &dt1);
 }
+
 
 
 /////////////////////////////////////////////////////////////////////
