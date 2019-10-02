@@ -92,16 +92,62 @@ void rtinit0() {
 
 */
 void rtupdate0( struct RoutePacket *rcvdpkt ) {
+	printf("rtupdate0 was called\n");
 	int i = 0;
-	int sendUpdate;
+	int j = 0;
+	int sendUpdate = 0;
 	int src = rcvdpkt->sourceid;
 
 	for(i = 0; i < MAX_NODES; i++){
-		if(rcvdpkt->mincost[i] < dt0.costs[i][src]){
-			dt0.costs[i][src] = rcvdpkt->mincost[i];
+		if(i == src){ //don't update with src dist to itself
+			continue;
 		}
+		//if(rcvdpkt->mincost[i] < dt0.costs[i][src]){ //if 
+			dt0.costs[i][src] = rcvdpkt->mincost[i] + dt0.costs[src][src]; //distance to node = dist from this node to pkt src + src distance
+			for(j = 0; j < MAX_NODES; j++){
+				if(dt0.costs[i][src] < dt0.costs[i][j]){ //if any of the new values is now the shortest distance to that node
+					sendUpdate = 1; //we need to update this node's shortest path
+				}
+			}
+		//}
 	}
 	printdt0(THISNODE, neighbor0, &dt0);
+	
+	if(sendUpdate){
+		int tempArray[MAX_NODES];
+		for(i = 0; i < MAX_NODES; i++){
+			tempArray[i] = INFINITY;
+			for(j = 0; j < MAX_NODES; j++){
+				if(dt0.costs[i][j] < tempArray[i]){
+					tempArray[i] = dt0.costs[i][j];
+				}
+			}
+		}
+		
+		struct RoutePacket toSend;
+		toSend.sourceid = 0;
+		
+		memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
+
+		i = 0;
+		while(i < MAX_NODES && neighborIDs[i] != -1){
+			if(neighborIDs[i] == THISNODE || neighborIDs[i] == src){ //don't send to self or source
+				i++;
+				continue;
+			}
+
+			toSend.destid = neighborIDs[i];
+			toLayer2(toSend);
+
+			printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+			for(j = 0; j < MAX_NODES; j++){
+				printf(" %d", toSend.mincost[j]);
+			}
+			printf("\n");
+
+			i++;
+		}
+	}
 }
 
 

@@ -14,17 +14,15 @@ void printdt1( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance
 
 int neighbor1IDs[MAX_NODES];
 
-int THISNODE = 1;
-
 void rtinit1() {
 	printf("rtinit1 called\n");
-	neighbor1 = getNeighborCosts(THISNODE);
+	neighbor1 = getNeighborCosts(1);
 	int totalNodes = neighbor1->NodesInNetwork;
 	int i = 0;
 	int j = 0;
 
 	for(i = 0; i < MAX_NODES; i++){ //set everything in the costs array to infinite distance
-		neighborIDs[i] = -1; //initialize neighbor IDs to invalid value
+		neighbor1IDs[i] = -1; //initialize neighbor IDs to invalid value
 		for(j = 0; j < MAX_NODES; j++){
 			dt1.costs[i][j] = INFINITY;
 		}
@@ -32,13 +30,13 @@ void rtinit1() {
 
 	j = 0;
 	for(i = 0; i < totalNodes; i++){ //establish this node's distance to each other node (1 hop)
-		if(neighbor0->NodeCosts[i] != INFINITY){ //if we have a direct connection to this node
+		if(neighbor1->NodeCosts[i] != INFINITY){ //if we have a direct connection to this node
 			dt1.costs[i][i] = neighbor1->NodeCosts[i];
 			neighbor1IDs[j] = i;
 			j++;
 		}
 	}
-	printdt1(THISNODE, neighbor0, &dt1);
+	printdt1(1, neighbor1, &dt1);
 	
 	int tempArray[MAX_NODES];
 	for(j = 0; j < MAX_NODES; j++){
@@ -55,13 +53,13 @@ void rtinit1() {
 	printf("\n");
 
 	struct RoutePacket toSend;
-	toSend.sourceid = THISNODE;
+	toSend.sourceid = 1;
 		
 	memcpy(&toSend.mincost, &tempArray, sizeof(tempArray));
 	
 	i = 0;
-	while(i < MAX_NODES && neighborIDs[i] != -1){
-		if(neighbor1IDs[i] == THISNODE){ //don't send to self
+	while(i < MAX_NODES && neighbor1IDs[i] != -1){
+		if(neighbor1IDs[i] == 1){ //don't send to self
 			i++;
 			continue;
 		}
@@ -69,7 +67,7 @@ void rtinit1() {
 		toSend.destid = neighbor1IDs[i];
 		toLayer2(toSend);
 
-		printf("Node %d is sending a packet to %d with: ", THISNODE, toSend.destid);
+		printf("Node %d is sending a packet to %d with: ", 1, toSend.destid);
 		for(j = 0; j < MAX_NODES; j++){
 			printf(" %d", toSend.mincost[j]);
 		}
@@ -98,7 +96,7 @@ void rtupdate1( struct RoutePacket *rcvdpkt ) {
 			dt1.costs[i][src] = rcvdpkt->mincost[i];
 		}
 	}
-	printdt0(THISNODE, neighbor0, &dt1);
+	printdt1(1, neighbor1, &dt1);
 }
 
 
