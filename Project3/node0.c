@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "project3.h"
 #include <string.h>
+#include <sys/time.h>
+#include <stdlib.h>
 
 extern int TraceLevel;
 
@@ -11,6 +13,8 @@ struct distance_table dt0;
 struct NeighborCosts   *neighbor0;
 
 /* students to write the following two routines, and maybe some others */
+struct timeval *startTime0;
+struct timeval *currTime0;
 
 void printdt0( int MyNodeNumber, struct NeighborCosts *neighbor, struct distance_table *dtptr );
 
@@ -18,6 +22,11 @@ int neighbor0IDs[MAX_NODES];
 
 void rtinit0() {
 	printf("rtinit0 called\n");
+	
+	startTime0 = (struct timeval*) malloc(sizeof(struct timeval));
+	currTime0 = (struct timeval*) malloc(sizeof(struct timeval));
+
+	gettimeofday(startTime0, NULL);	
 	neighbor0 = getNeighborCosts(0);
 	int totalNodes = neighbor0->NodesInNetwork;
 	int i = 0;
@@ -66,8 +75,9 @@ void rtinit0() {
 
 		toSend.destid = neighbor0IDs[i];
 		toLayer2(toSend);
-
-		printf("At time t=0.000 node %d is sending a packet to %d with: ", 0, toSend.destid);
+		printf("Getting time of day\n");
+		gettimeofday(currTime0, NULL);
+		printf("At time t=%d node %d is sending a packet to %d with: ",((currTime0->tv_sec * 1000) + (currTime0->tv_usec / 1000)) - ((startTime0->tv_sec * 1000) + (startTime0->tv_usec / 1000)), 0, toSend.destid);
 		for(j = 0; j < MAX_NODES; j++){
 			printf(" %d", toSend.mincost[j]);
 		}
@@ -88,9 +98,11 @@ void rtinit0() {
 
 void rtupdate0( struct RoutePacket *rcvdpkt ) {
 	if(TraceLevel == 2){
-		printf("At time t=0.000 rtupdate0 was called from packet sent from %d with:", rcvdpkt->sourceid);
+		gettimeofday(currTime0, NULL);
+		printf("At time t=%d rtupdate0 was called from packet sent from %d with:", ((currTime0->tv_sec * 1000) + (currTime0->tv_usec / 1000)) - ((startTime0->tv_sec * 1000) + (startTime0->tv_usec / 1000)), rcvdpkt->sourceid);
 	} else {
-		printf("At time t=0.000 rtupdate0 was called\n");
+		gettimeofday(currTime0, NULL);
+		printf("At time t=%d rtupdate0 was called\n", ((currTime0->tv_sec * 1000) + (currTime0->tv_usec / 1000)) - ((startTime0->tv_sec * 1000) + (startTime0->tv_usec / 1000)));
 	}
 	int i = 0;
 	int j = 0;
@@ -148,8 +160,8 @@ void rtupdate0( struct RoutePacket *rcvdpkt ) {
 
 			toSend.destid = neighbor0IDs[i];
 			toLayer2(toSend);
-
-			printf("At time t=0.000 node %d is sending a packet to %d with: ", 0, toSend.destid);
+			gettimeofday(currTime0, NULL);
+			printf("At time t=%d node %d is sending a packet to %d with: ",((currTime0->tv_sec * 1000) + (currTime0->tv_usec / 1000)) - ((startTime0->tv_sec * 1000) + (startTime0->tv_usec / 1000)), 0, toSend.destid);
 			for(j = 0; j < MAX_NODES; j++){
 				printf(" %d", toSend.mincost[j]);
 			}
